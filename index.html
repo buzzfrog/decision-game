@@ -150,6 +150,34 @@
       .app-container { grid-template-columns: 1fr; }
     }
 
+    .app-container.json-open {
+      grid-template-columns: 1fr 400px 440px;
+      max-width: 2200px;
+    }
+    @media (max-width: 1500px) {
+      .app-container.json-open { grid-template-columns: 1fr 380px 380px; }
+    }
+    @media (max-width: 1100px) {
+      .app-container.json-open { grid-template-columns: 1fr; }
+    }
+
+    .json-pane {
+      display: none;
+      flex-direction: column;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      position: sticky;
+      top: 16px;
+      align-self: start;
+      height: calc(100vh - 110px);
+    }
+    .app-container.json-open .json-pane { display: flex; }
+    .json-pane-body { flex: 1; overflow-y: auto; padding: 12px; }
+    .json-pane .json-code { max-height: none; overflow: visible; font-size: 12px; }
+
     /* Game World Left */
     .game-panel {
       background: var(--panel-bg);
@@ -434,6 +462,8 @@
 
     /* JSON code preview */
     .json-code {
+      user-select: text;
+      cursor: text;
       font-family: var(--font-mono);
       font-size: 11px;
       line-height: 1.45;
@@ -543,6 +573,9 @@
     <div class="header-actions">
       <button id="modeToggleBtn" class="btn btn-active" title="Toggle Auto-Pilot AI vs Manual Player mode">
         <span id="modeIcon">🤖</span> <span id="modeText">AI Autonomous Co-Pilot</span>
+      </button>
+      <button id="jsonToggleBtn" class="btn" title="Show / hide the full request & response JSON (J)">
+        { } JSON
       </button>
       <button id="pauseBtn" class="btn" title="Pause / resume the game (P or Space)">
         ⏸ Pause
@@ -711,16 +744,7 @@
           </div>
         </div>
 
-        <!-- Serialized State sent to Decision-1 -->
-        <div>
-          <div class="section-title">
-            <span>Evaluated State (Request Payload)</span>
-            <span>JSON</span>
-          </div>
-          <div class="json-code" id="stateJsonPreview">{ "status": "Waiting for incoming target..." }</div>
-        </div>
-
-        <!-- Live API Diagnostics -->
+        <!-- API Specification -->
         <div>
           <div class="section-title">
             <span>API Specification</span>
@@ -734,6 +758,20 @@
           </div>
         </div>
 
+      </div>
+    </div>
+
+    <!-- Far right: complete request/response JSON (toggle with J) -->
+    <div class="json-pane" id="jsonPane">
+      <div class="telemetry-header">
+        <h2>{ } Decision-1 JSON</h2>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="btn" id="copyJsonBtn" title="Copy the JSON to the clipboard">📋 Copy</button>
+          <div class="latency-badge">Key [J] to hide</div>
+        </div>
+      </div>
+      <div class="json-pane-body">
+        <div class="json-code" id="stateJsonPreview">{ "status": "Waiting for incoming target..." }</div>
       </div>
     </div>
 
@@ -857,12 +895,13 @@
 
     // --- State and Config ---
     const CONFIG = {
-      engineMode: localStorage.getItem('d1_engine') || 'sim',
       endpoint: localStorage.getItem('d1_endpoint') || '',
       deployment: localStorage.getItem('d1_deployment') || '',
       apiKey: localStorage.getItem('d1_key') || '',
       autoPilot: true
     };
+    // A saved Foundry connection always wins at startup; otherwise use the simulator
+    CONFIG.engineMode = (CONFIG.endpoint && CONFIG.apiKey) ? 'live' : 'sim';
 
     const GAME_STATE = {
       hull: 100,
@@ -950,21 +989,51 @@
     }
 
     let lastJsonRender = 0;
+    function buildRequest(state) {
+      return { model: CONFIG.deployment || "microsoft-decision-1", state, questions: DECISION_QUESTIONS };
+    }
+
     function refreshStateJson() {
       const t = GAME_STATE.currentTarget;
       if (!t) return;
       const now = performance.now();
       if (now - lastJsonRender < 150) return;
       lastJsonRender = now;
-      renderStateJson({ state: buildStatePayload(t), decision: t.rawDecision || "pending..." });
+      renderStateJson({ request: buildRequest(buildStatePayload(t)), response: t.rawDecision || "pending..." });
     }
+
+    const DECISION_QUESTIONS = {
+      is_hostile: {
+        type: "noul",
+        instructions: "Is this approaching object an active hostile threat to the station?",
+        criteria: {
+          true: "Armed raider, kamikaze projectile, or hazardous asteroid on collision course",
+          false: "Friendly vessel, civilian transport, distress pod, or harmless debris"
+        }
+      },
+      tactical_response: {
+        type: "choice",
+        instructions: "Which action should the outpost command take immediately?",
+        criteria: {
+          intercept: "Fire point-defense lasers or railgun at dangerous targets",
+          shield: "Raise reinforced energy shields to absorb incoming impact or radiation",
+          dock: "Deploy tractor beam and guide friendly vessel or distress escape pod into hangar",
+          ignore: "Hold fire and conserve resources for harmless background space debris"
+        }
+      },
+      threat_level: {
+        type: "score",
+        instructions: "Rate the incident severity on an ordered scale.",
+        criteria: ["Cosmetic", "Minor", "Major", "Critical"]
+      }
+    };
 
     async function evaluateWithDecision1(target) {
       const mySeq = ++evalSeq;
       const statePayload = buildStatePayload(target);
 
       // Display evaluated state in UI
-      renderStateJson({ state: statePayload, decision: "pending..." });
+      renderStateJson({ request: buildRequest(statePayload), response: "pending..." });
 
       const startTime = performance.now();
 
@@ -972,35 +1041,7 @@
       if (CONFIG.engineMode === 'live' && CONFIG.endpoint && CONFIG.apiKey) {
         try {
           const endpointUrl = `${CONFIG.endpoint.replace(/\/+$/, '')}/providers/microsoft/v1/systemone`;
-          const requestBody = {
-            model: CONFIG.deployment,
-            state: statePayload,
-            questions: {
-              is_hostile: {
-                type: "noul",
-                instructions: "Is this approaching object an active hostile threat to the station?",
-                criteria: {
-                  true: "Armed raider, kamikaze projectile, or hazardous asteroid on collision course",
-                  false: "Friendly vessel, civilian transport, distress pod, or harmless debris"
-                }
-              },
-              tactical_response: {
-                type: "choice",
-                instructions: "Which action should the outpost command take immediately?",
-                criteria: {
-                  intercept: "Fire point-defense lasers or railgun at dangerous targets",
-                  shield: "Raise reinforced energy shields to absorb incoming impact or radiation",
-                  dock: "Deploy tractor beam and guide friendly vessel or distress escape pod into hangar",
-                  ignore: "Hold fire and conserve resources for harmless background space debris"
-                }
-              },
-              threat_level: {
-                type: "score",
-                instructions: "Rate the incident severity on an ordered scale.",
-                criteria: ["Cosmetic", "Minor", "Major", "Critical"]
-              }
-            }
-          };
+          const requestBody = buildRequest(statePayload);
 
           const resp = await fetch(endpointUrl, {
             method: 'POST',
@@ -1154,8 +1195,18 @@
       }
     }
 
+    let lastJsonText = '';
+    let jsonMouseDown = false;
+    document.addEventListener('mouseup', () => { jsonMouseDown = false; });
     function renderStateJson(state) {
       const formatted = JSON.stringify(state, null, 2);
+      // Skip identical updates and don't disturb a selection being made
+      if (formatted === lastJsonText) return;
+      if (jsonMouseDown) return;
+      const sel = window.getSelection();
+      const el = document.getElementById('stateJsonPreview');
+      if (sel && !sel.isCollapsed && el.contains(sel.anchorNode)) return;
+      lastJsonText = formatted;
       // Simple syntax highlight
       const highlighted = formatted
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -1551,7 +1602,46 @@
     }
 
     // Keyboard Shortcuts
+    async function copyJson() {
+      const btn = document.getElementById('copyJsonBtn');
+      const sel0 = window.getSelection();
+      const pane = document.getElementById('stateJsonPreview');
+      const selected = (sel0 && !sel0.isCollapsed && pane.contains(sel0.anchorNode)) ? sel0.toString() : '';
+      try {
+        await navigator.clipboard.writeText(selected || lastJsonText);
+        btn.innerText = selected ? '✅ Copied selection' : '✅ Copied';
+      } catch (err) {
+        const range = document.createRange();
+        range.selectNodeContents(document.getElementById('stateJsonPreview'));
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        btn.innerText = 'Selected - press Ctrl+C';
+      }
+      setTimeout(() => { btn.innerText = '📋 Copy'; }, 1500);
+    }
+    document.getElementById('stateJsonPreview').addEventListener('mousedown', () => { jsonMouseDown = true; });
+    document.getElementById('copyJsonBtn').addEventListener('mousedown', (e) => e.preventDefault());
+    document.getElementById('copyJsonBtn').addEventListener('click', (e) => {
+      copyJson();
+      e.currentTarget.blur();
+    });
+
+    function setJsonPane(open) {
+      document.querySelector('.app-container').classList.toggle('json-open', open);
+      document.getElementById('jsonToggleBtn').classList.toggle('btn-active', open);
+      resizeCanvas();
+    }
+    function isJsonPaneOpen() {
+      return document.querySelector('.app-container').classList.contains('json-open');
+    }
+
     window.addEventListener('keydown', (e) => {
+      if (e.key === 'j' || e.key === 'J') {
+        if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+        setJsonPane(!isJsonPaneOpen());
+        return;
+      }
       if (e.key === 'p' || e.key === 'P' || (e.key === ' ' && !/INPUT|SELECT|TEXTAREA|BUTTON/.test(e.target.tagName))) {
         e.preventDefault();
         setPaused(!paused);
@@ -1579,6 +1669,12 @@
         text.innerText = 'Manual Player Duel';
       }
     });
+
+    document.getElementById('jsonToggleBtn').addEventListener('click', (e) => {
+      setJsonPane(!isJsonPaneOpen());
+      e.currentTarget.blur();
+    });
+    setJsonPane(false);
 
     document.getElementById('pauseBtn').addEventListener('click', (e) => {
       setPaused(!paused);
@@ -1625,6 +1721,11 @@
       localStorage.setItem('d1_deployment', CONFIG.deployment);
       localStorage.setItem('d1_key', CONFIG.apiKey);
 
+      updateConnectionStatus();
+      window.closeSettings();
+    };
+
+    function updateConnectionStatus() {
       const statusPill = document.getElementById('connectionStatus');
       const statusLabel = document.getElementById('statusLabel');
 
@@ -1639,11 +1740,10 @@
         statusPill.style.borderColor = 'rgba(0, 255, 136, 0.3)';
         statusLabel.innerText = 'Simulation Engine (Fast Demo)';
       }
-
-      window.closeSettings();
-    };
+    }
 
     // Start Game
+    updateConnectionStatus();
     spawnTarget();
     requestAnimationFrame(gameLoop);
   </script>
