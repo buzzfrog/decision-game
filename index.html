@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Outpost Sentinel - Microsoft-Decision-1 Demo</title>
+  <style>
+    :root {
+      --bg-dark: #0a0e17;
+      --panel-bg: rgba(16, 24, 40, 0.85);
+      --panel-border: #1f2d47;
+      --accent-cyan: #00f0ff;
+      --accent-green: #00ff88;
+      --accent-orange: #ff9900;
+      --accent-red: #ff3366;
+      --accent-purple: #b55fe6;
+      --text-main: #e2e8f0;
+      --text-dim: #8ba2c4;
+      --font-mono: 'Consolas', 'Monaco', 'Courier New', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-dark);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      user-select: none;
+    }
+
+    /* Top Bar */
+    header {
+      background: rgba(10, 14, 23, 0.95);
+      border-bottom: 1px solid var(--panel-border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(10px);
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-badge {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #0078d4, #00d2df);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 16px;
+      color: #0b111a;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    .title-group h1 {
+      font-size: 20px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .title-group p {
+      font-size: 12px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid var(--panel-border);
+      color: var(--text-main);
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: rgba(45, 60, 85, 0.9);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-active {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    .status-pill {
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 255, 136, 0.1);
+      border: 1px solid rgba(0, 255, 136, 0.3);
+      color: var(--accent-green);
+      font-family: var(--font-mono);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    /* Layout */
+    .app-container {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 440px;
+      gap: 16px;
+      padding: 16px;
+      max-width: 1700px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 1100px) {
+      .app-container { grid-template-columns: 1fr; }
+    }
+
+    /* Game World Left */
+    .game-panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .game-hud {
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(10, 14, 23, 0.7);
+      border-bottom: 1px solid var(--panel-border);
+      z-index: 5;
+    }
+
+    .hud-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .hud-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+    }
+
+    .hud-value {
+      font-size: 18px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+
+    .stat-bar {
+      width: 120px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .stat-bar-fill {
+      height: 100%;
+      width: 100%;
+      transform-origin: left;
+      transform: scaleX(1);
+      transition: transform 0.3s ease-out;
+    }
+
+    .stat-hull .stat-bar-fill { background: var(--accent-green); }
+    .stat-shield .stat-bar-fill { background: var(--accent-cyan); }
+
+    .canvas-wrapper {
+      position: relative;
+      flex: 1;
+      min-height: 480px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #0e1726 0%, #070a10 100%);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .game-controls {
+      padding: 14px 18px;
+      background: rgba(10, 14, 23, 0.85);
+      border-top: 1px solid var(--panel-border);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 5;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      flex: 1;
+    }
+
+    .action-btn {
+      flex: 1;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-radius: 8px;
+      border: 1px solid var(--panel-border);
+      background: rgba(26, 38, 59, 0.6);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+
+    .action-btn .shortcut {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    .action-btn.btn-intercept:hover { background: rgba(255, 51, 102, 0.25); border-color: var(--accent-red); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4); }
+    .action-btn.btn-shield:hover { background: rgba(0, 240, 255, 0.25); border-color: var(--accent-cyan); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4); }
+    .action-btn.btn-dock:hover { background: rgba(0, 255, 136, 0.25); border-color: var(--accent-green); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4); }
+    .action-btn.btn-ignore:hover { background: rgba(139, 162, 196, 0.25); border-color: var(--text-dim); }
+
+    /* Right Telemetry Panel */
+    .telemetry-panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .telemetry-header {
+      padding: 14px 18px;
+      background: rgba(10, 14, 23, 0.85);
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .telemetry-header h2 {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .latency-badge {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 3px 8px;
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      color: var(--accent-cyan);
+      border-radius: 4px;
+    }
+
+    .telemetry-body {
+      padding: 16px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .card {
+      background: rgba(13, 20, 33, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    /* Decision Primitives UI */
+    .primitive-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .primitive-row:last-child { margin-bottom: 0; }
+
+    .primitive-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+
+    .primitive-name {
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .primitive-type {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      padding: 1px 5px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 3px;
+    }
+
+    .primitive-value {
+      font-family: var(--font-mono);
+      font-weight: 700;
+    }
+
+    .prob-bar-container {
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .prob-bar-fill {
+      height: 100%;
+      width: 100%;
+      transform-origin: left;
+      transform: scaleX(0);
+      border-radius: 4px;
+      transition: transform 0.25s ease-out;
+    }
+
+    .choice-distribution {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .choice-item {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 6px 8px;
+      border-radius: 5px;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .choice-item.selected {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 240, 255, 0.1);
+      color: #fff;
+    }
+
+    .score-levels {
+      display: flex;
+      gap: 4px;
+      margin-top: 6px;
+    }
+
+    .score-level-block {
+      flex: 1;
+      height: 6px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.1);
+      transition: all 0.2s;
+    }
+
+    /* JSON code preview */
+    .json-code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.45;
+      color: #cbd5e1;
+      background: rgba(5, 8, 14, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      padding: 10px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .json-key { color: #38bdf8; }
+    .json-string { color: #a5f3fc; }
+    .json-num { color: #f472b6; }
+    .json-bool { color: #4ade80; }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      background: #111827;
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 520px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+    }
+
+    .modal h3 {
+      font-size: 17px;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+
+    .modal p {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: rgba(17, 24, 39, 0.9);
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.25);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="brand">
+      <div class="logo-badge">D1</div>
+      <div class="title-group">
+        <h1>Outpost Sentinel <span style="font-size: 12px; padding: 2px 8px; border-radius: 4px; background: rgba(0,240,255,0.1); color: var(--accent-cyan);">Foundry System-1</span></h1>
+        <p>Real-time Tactical Defense powered by Microsoft-Decision-1</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button id="modeToggleBtn" class="btn btn-active" title="Toggle Auto-Pilot AI vs Manual Player mode">
+        <span id="modeIcon">🤖</span> <span id="modeText">AI Autonomous Co-Pilot</span>
+      </button>
+      <button id="audioToggleBtn" class="btn" title="Toggle Sound FX">
+        🔊 Audio
+      </button>
+      <button id="settingsBtn" class="btn" title="Configure Foundry API Endpoint & Key">
+        ⚙️ Settings
+      </button>
+      <div id="connectionStatus" class="status-pill">
+        <span class="status-dot"></span>
+        <span id="statusLabel">Simulation Engine (Fast Demo)</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="app-container">
+    
+    <!-- Left: 2D Radar & Outpost Canvas -->
+    <div class="game-panel">
+      <!-- HUD Stats -->
+      <div class="game-hud">
+        <div class="hud-stat stat-hull">
+          <div class="hud-label">Station Hull</div>
+          <div class="hud-value" id="hudHull">100%</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="hudHullBar" style="width: 100%;"></div></div>
+        </div>
+        <div class="hud-stat stat-shield">
+          <div class="hud-label">Energy Shields</div>
+          <div class="hud-value" id="hudShield">100%</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="hudShieldBar" style="width: 100%;"></div></div>
+        </div>
+        <div class="hud-stat">
+          <div class="hud-label">Threats Resolved</div>
+          <div class="hud-value" id="hudResolved" style="color: var(--accent-green);">0</div>
+        </div>
+        <div class="hud-stat">
+          <div class="hud-label">Station Score</div>
+          <div class="hud-value" id="hudScore" style="color: var(--accent-cyan);">0</div>
+        </div>
+        <div class="hud-stat">
+          <div class="hud-label">Decision AI Status</div>
+          <div class="hud-value" id="hudAiState" style="color: var(--accent-cyan); font-size: 14px;">READY</div>
+        </div>
+      </div>
+
+      <!-- Canvas -->
+      <div class="canvas-wrapper">
+        <canvas id="gameCanvas"></canvas>
+      </div>
+
+      <!-- Action Controls (Active in Manual Mode or for manual overrides) -->
+      <div class="game-controls">
+        <div style="font-size: 11px; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.5px; width: 140px;">
+          Tactical Command:
+        </div>
+        <div class="action-buttons">
+          <button class="action-btn btn-intercept" onclick="window.triggerAction('intercept')">
+            <span>Laser Intercept</span>
+            <span class="shortcut">Key [1]</span>
+          </button>
+          <button class="action-btn btn-shield" onclick="window.triggerAction('shield')">
+            <span>Shield Boost</span>
+            <span class="shortcut">Key [2]</span>
+          </button>
+          <button class="action-btn btn-dock" onclick="window.triggerAction('dock')">
+            <span>Tractor Dock</span>
+            <span class="shortcut">Key [3]</span>
+          </button>
+          <button class="action-btn btn-ignore" onclick="window.triggerAction('ignore')">
+            <span>Hold / Ignore</span>
+            <span class="shortcut">Key [4]</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Telemetry & Model Primitives Console -->
+    <div class="telemetry-panel">
+      <div class="telemetry-header">
+        <h2>⚡ Decision-1 Telemetry</h2>
+        <div class="latency-badge" id="telemetryLatency">Latency: 0 ms</div>
+      </div>
+
+      <div class="telemetry-body">
+        
+        <!-- Live Decision Primitives Output -->
+        <div>
+          <div class="section-title">
+            <span>Model Decisions (System-1 Primitives)</span>
+            <span id="decisionTimestamp" style="font-family: var(--font-mono);">--:--:--</span>
+          </div>
+
+          <div class="card">
+            <!-- 1. Noul Question: Is Hostile -->
+            <div class="primitive-row">
+              <div class="primitive-header">
+                <span class="primitive-name">
+                  <span>Gate: is_hostile</span>
+                  <span class="primitive-type">noul</span>
+                </span>
+                <span class="primitive-value" id="noulVal">P = 0.00</span>
+              </div>
+              <div class="prob-bar-container">
+                <div class="prob-bar-fill" id="noulBar" style="width: 0%; background: var(--accent-red);"></div>
+              </div>
+            </div>
+
+            <!-- 2. Choice Question: Tactical Action -->
+            <div class="primitive-row" style="margin-top: 14px;">
+              <div class="primitive-header">
+                <span class="primitive-name">
+                  <span>Routing: tactical_response</span>
+                  <span class="primitive-type">choice</span>
+                </span>
+                <span class="primitive-value" id="choiceVal" style="color: var(--accent-cyan);">--</span>
+              </div>
+              <div class="choice-distribution">
+                <div class="choice-item" id="opt-intercept">
+                  <span>Intercept</span>
+                  <span id="prob-intercept" style="font-family: var(--font-mono);">0%</span>
+                </div>
+                <div class="choice-item" id="opt-shield">
+                  <span>Shield</span>
+                  <span id="prob-shield" style="font-family: var(--font-mono);">0%</span>
+                </div>
+                <div class="choice-item" id="opt-dock">
+                  <span>Dock</span>
+                  <span id="prob-dock" style="font-family: var(--font-mono);">0%</span>
+                </div>
+                <div class="choice-item" id="opt-ignore">
+                  <span>Ignore</span>
+                  <span id="prob-ignore" style="font-family: var(--font-mono);">0%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Score Question: Threat Severity -->
+            <div class="primitive-row" style="margin-top: 14px;">
+              <div class="primitive-header">
+                <span class="primitive-name">
+                  <span>Grading: threat_level</span>
+                  <span class="primitive-type">score (0-3)</span>
+                </span>
+                <span class="primitive-value" id="scoreVal" style="color: var(--accent-orange);">0.0 / 3.0</span>
+              </div>
+              <div class="score-levels" id="scoreLevelBlocks">
+                <div class="score-level-block" title="0: Cosmetic"></div>
+                <div class="score-level-block" title="1: Minor"></div>
+                <div class="score-level-block" title="2: Major"></div>
+                <div class="score-level-block" title="3: Critical"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Serialized State sent to Decision-1 -->
+        <div>
+          <div class="section-title">
+            <span>Evaluated State (Request Payload)</span>
+            <span>JSON</span>
+          </div>
+          <div class="json-code" id="stateJsonPreview">{ "status": "Waiting for incoming target..." }</div>
+        </div>
+
+        <!-- Live API Diagnostics -->
+        <div>
+          <div class="section-title">
+            <span>API Specification</span>
+            <span style="color: var(--accent-green);">v1/systemone</span>
+          </div>
+          <div class="card" style="font-size: 11px; line-height: 1.6; color: var(--text-dim);">
+            <div>• <b>API Endpoint:</b> <code>/providers/microsoft/v1/systemone</code></div>
+            <div>• <b>Architecture:</b> System-1 fast categorical & numerical inference</div>
+            <div>• <b>Request Mode:</b> Multi-question single-pass evaluation</div>
+            <div>• <b>Tokens per eval:</b> ~135 input / 12 output</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Settings Modal for Azure Foundry credentials -->
+  <div class="modal-backdrop" id="settingsModal">
+    <div class="modal">
+      <h3>Foundry API Configuration</h3>
+      <p>Connect directly to your deployed <code>Microsoft-Decision-1</code> model on Microsoft Foundry, or use the built-in fast simulator for instant demoing.</p>
+
+      <div class="form-group">
+        <label>Engine Mode</label>
+        <select class="form-input" id="cfgEngineMode">
+          <option value="sim">Fast Local Simulator (No setup needed)</option>
+          <option value="live">Live Azure Foundry Deployment</option>
+        </select>
+      </div>
+
+      <div id="liveSettingsGroup" style="display: none;">
+        <div class="form-group">
+          <label>Foundry Resource Endpoint</label>
+          <input type="text" class="form-input" id="cfgEndpoint" placeholder="https://your-foundry-resource.openai.azure.com/">
+        </div>
+
+        <div class="form-group">
+          <label>Deployment Name</label>
+          <input type="text" class="form-input" id="cfgDeployment" placeholder="e.g. microsoft-decision-1">
+        </div>
+
+        <div class="form-group">
+          <label>API Key (or Entra Bearer Token)</label>
+          <input type="password" class="form-input" id="cfgApiKey" placeholder="Your Azure API Key">
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" onclick="window.closeSettings()">Cancel</button>
+        <button class="btn btn-active" onclick="window.saveSettings()">Save Configuration</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio Synthesizer & Game Script -->
+  <script>
+    // --- Web Audio FX Generator ---
+    class SoundFX {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+      }
+      playLaser() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(110, now + 0.15);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.16);
+      }
+      playShield() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.linearRampToValueAtTime(440, now + 0.25);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.31);
+      }
+      playDock() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.setValueAtTime(659.25, now + 0.1);
+        osc.frequency.setValueAtTime(783.99, now + 0.2);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.36);
+      }
+      playImpact() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(120, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.3);
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.31);
+      }
+    }
+    const sound = new SoundFX();
+
+    // --- State and Config ---
+    const CONFIG = {
+      engineMode: localStorage.getItem('d1_engine') || 'sim',
+      endpoint: localStorage.getItem('d1_endpoint') || '',
+      deployment: localStorage.getItem('d1_deployment') || '',
+      apiKey: localStorage.getItem('d1_key') || '',
+      autoPilot: true
+    };
+
+    const GAME_STATE = {
+      hull: 100,
+      shield: 100,
+      score: 0,
+      resolved: 0,
+      currentTarget: null,
+      cooldown: 0,
+      particles: [],
+      laserBeam: null,
+      shieldFlash: 0,
+      tractorBeam: null
+    };
+
+    // Target Archetypes for the Game
+    const TARGET_TYPES = [
+      {
+        name: "Raider Gunship",
+        kind: "raider",
+        color: "#ff3366",
+        speed: 1.8,
+        expectedAction: "intercept",
+        transponder: "None (Hostile Signature)",
+        energy_signature: "High military pulsed plasma",
+        hull_integrity: "Reinforced armored plate",
+        speed_kps: 18.2,
+        distance_km: 1400,
+        lore: "Hostile corsair approaching weapon range with active targeting lock."
+      },
+      {
+        name: "High-Energy Plasma Storm",
+        kind: "storm",
+        color: "#00f0ff",
+        speed: 1.4,
+        expectedAction: "shield",
+        transponder: "Natural Stellar Phenomenon",
+        energy_signature: "Extreme coronal mass radiation",
+        hull_integrity: "Incorporeal ionized gas",
+        speed_kps: 34.0,
+        distance_km: 1800,
+        lore: "High-density radiation wave approaching outstation solar arrays."
+      },
+      {
+        name: "Civilian Distress Pod",
+        kind: "pod",
+        color: "#00ff88",
+        speed: 1.1,
+        expectedAction: "dock",
+        transponder: "SOL-EMERGENCY-MAYDAY",
+        energy_signature: "Failing backup chemical cell",
+        hull_integrity: "Critical depressurization risk",
+        speed_kps: 6.5,
+        distance_km: 1100,
+        lore: "Unpowered escape capsule carrying survivors from merchant freighter."
+      },
+      {
+        name: "Inert Satellite Debris",
+        kind: "debris",
+        color: "#94a3b8",
+        speed: 1.2,
+        expectedAction: "ignore",
+        transponder: "Decommissioned Relay-4",
+        energy_signature: "Zero thermal / passive drift",
+        hull_integrity: "Fragmented solar panel mast",
+        speed_kps: 8.1,
+        distance_km: 2100,
+        lore: "Harmless orbital flotsam predicted to safely transit zone perimeter."
+      }
+    ];
+
+    // --- Microsoft-Decision-1 API Client ---
+    async function evaluateWithDecision1(target) {
+      const statePayload = {
+        target_name: target.name,
+        transponder: target.transponder,
+        energy_signature: target.energy_signature,
+        hull_integrity: target.hull_integrity,
+        speed_kps: target.speed_kps,
+        distance_km: Math.round(target.distance),
+        station_hull_integrity: GAME_STATE.hull,
+        station_shield_power: GAME_STATE.shield,
+        incident_description: target.lore
+      };
+
+      // Display evaluated state in UI
+      renderStateJson(statePayload);
+
+      const startTime = performance.now();
+
+      // If in live mode and endpoint configured, call the real Azure Foundry Decision-1 API!
+      if (CONFIG.engineMode === 'live' && CONFIG.endpoint && CONFIG.apiKey) {
+        try {
+          const endpointUrl = `${CONFIG.endpoint.replace(/\/+$/, '')}/providers/microsoft/v1/systemone`;
+          const requestBody = {
+            model: CONFIG.deployment,
+            state: statePayload,
+            questions: {
+              is_hostile: {
+                type: "noul",
+                instructions: "Is this approaching object an active hostile threat to the station?",
+                criteria: {
+                  true: "Armed raider, kamikaze projectile, or hazardous asteroid on collision course",
+                  false: "Friendly vessel, civilian transport, distress pod, or harmless debris"
+                }
+              },
+              tactical_response: {
+                type: "choice",
+                instructions: "Which action should the outpost command take immediately?",
+                criteria: {
+                  intercept: "Fire point-defense lasers or railgun at dangerous targets",
+                  shield: "Raise reinforced energy shields to absorb incoming impact or radiation",
+                  dock: "Deploy tractor beam and guide friendly vessel or distress escape pod into hangar",
+                  ignore: "Hold fire and conserve resources for harmless background space debris"
+                }
+              },
+              threat_level: {
+                type: "score",
+                instructions: "Rate the incident severity on an ordered scale.",
+                criteria: ["Cosmetic", "Minor", "Major", "Critical"]
+              }
+            }
+          };
+
+          const resp = await fetch(endpointUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'api-key': CONFIG.apiKey
+            },
+            body: JSON.stringify(requestBody)
+          });
+
+          if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+          }
+
+          const result = await resp.json();
+          const latency = Math.round(performance.now() - startTime);
+          renderTelemetry(result, latency);
+          return parseDecisionResult(result);
+        } catch (err) {
+          console.warn("Live API call failed, falling back to simulated inference:", err);
+          document.getElementById('hudAiState').innerText = "API FALLBACK";
+        }
+      }
+
+      // Fast Local Simulation Engine (mimicking Decision-1 exact schema and 25-50ms latency)
+      await new Promise(r => setTimeout(r, 35 + Math.random() * 20));
+      const simulatedResult = generateSimulatedDecision(target);
+      const latency = Math.round(performance.now() - startTime);
+      renderTelemetry(simulatedResult, latency);
+      return parseDecisionResult(simulatedResult);
+    }
+
+    function generateSimulatedDecision(target) {
+      if (target.kind === 'raider') {
+        return {
+          model: "microsoft-decision-1",
+          answers: {
+            is_hostile: { type: "noul", probability: 0.94 },
+            tactical_response: {
+              type: "choice",
+              choice: "intercept",
+              probabilities: { intercept: 0.89, shield: 0.08, dock: 0.01, ignore: 0.02 }
+            },
+            threat_level: { type: "score", score: 2.85, probabilities: [0.01, 0.04, 0.25, 0.70] }
+          }
+        };
+      } else if (target.kind === 'storm') {
+        return {
+          model: "microsoft-decision-1",
+          answers: {
+            is_hostile: { type: "noul", probability: 0.65 },
+            tactical_response: {
+              type: "choice",
+              choice: "shield",
+              probabilities: { intercept: 0.04, shield: 0.88, dock: 0.01, ignore: 0.07 }
+            },
+            threat_level: { type: "score", score: 2.20, probabilities: [0.03, 0.12, 0.55, 0.30] }
+          }
+        };
+      } else if (target.kind === 'pod') {
+        return {
+          model: "microsoft-decision-1",
+          answers: {
+            is_hostile: { type: "noul", probability: 0.05 },
+            tactical_response: {
+              type: "choice",
+              choice: "dock",
+              probabilities: { intercept: 0.01, shield: 0.03, dock: 0.92, ignore: 0.04 }
+            },
+            threat_level: { type: "score", score: 1.15, probabilities: [0.20, 0.60, 0.15, 0.05] }
+          }
+        };
+      } else {
+        // debris
+        return {
+          model: "microsoft-decision-1",
+          answers: {
+            is_hostile: { type: "noul", probability: 0.08 },
+            tactical_response: {
+              type: "choice",
+              choice: "ignore",
+              probabilities: { intercept: 0.03, shield: 0.05, dock: 0.02, ignore: 0.90 }
+            },
+            threat_level: { type: "score", score: 0.30, probabilities: [0.75, 0.20, 0.04, 0.01] }
+          }
+        };
+      }
+    }
+
+    function parseDecisionResult(payload) {
+      const answers = payload.answers || {};
+      const action = answers.tactical_response?.choice || "ignore";
+      const hostileProb = answers.is_hostile?.probability || 0;
+      const threatScore = answers.threat_level?.score || 0;
+      return { action, hostileProb, threatScore };
+    }
+
+    // --- UI Telemetry Renderers ---
+    function renderTelemetry(result, latency) {
+      document.getElementById('telemetryLatency').innerText = `Latency: ${latency} ms`;
+      document.getElementById('decisionTimestamp').innerText = new Date().toLocaleTimeString();
+
+      const answers = result.answers || {};
+
+      // 1. Noul
+      const noul = answers.is_hostile;
+      if (noul) {
+        const p = noul.probability || 0;
+        document.getElementById('noulVal').innerText = `P = ${(p * 100).toFixed(0)}%`;
+        document.getElementById('noulBar').style.transform = `scaleX(${Math.max(0, Math.min(1, p))})`;
+        document.getElementById('noulBar').style.background = p > 0.5 ? 'var(--accent-red)' : 'var(--accent-green)';
+      }
+
+      // 2. Choice
+      const choiceAns = answers.tactical_response;
+      if (choiceAns) {
+        document.getElementById('choiceVal').innerText = choiceAns.choice.toUpperCase();
+        const probs = choiceAns.probabilities || {};
+        ['intercept', 'shield', 'dock', 'ignore'].forEach(opt => {
+          const itemEl = document.getElementById(`opt-${opt}`);
+          const probEl = document.getElementById(`prob-${opt}`);
+          const probVal = probs[opt] !== undefined ? Math.round(probs[opt] * 100) : 0;
+          probEl.innerText = `${probVal}%`;
+          if (opt === choiceAns.choice) {
+            itemEl.classList.add('selected');
+          } else {
+            itemEl.classList.remove('selected');
+          }
+        });
+      }
+
+      // 3. Score
+      const scoreAns = answers.threat_level;
+      if (scoreAns) {
+        const scoreVal = scoreAns.score !== undefined ? scoreAns.score : 0;
+        document.getElementById('scoreVal').innerText = `${scoreVal.toFixed(2)} / 3.0`;
+        const blocks = document.querySelectorAll('.score-level-block');
+        blocks.forEach((b, idx) => {
+          if (scoreVal >= idx + 0.5) {
+            b.style.background = scoreVal > 2 ? 'var(--accent-red)' : 'var(--accent-orange)';
+          } else {
+            b.style.background = 'rgba(255, 255, 255, 0.1)';
+          }
+        });
+      }
+    }
+
+    function renderStateJson(state) {
+      const formatted = JSON.stringify(state, null, 2);
+      // Simple syntax highlight
+      const highlighted = formatted
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+          let cls = 'json-num';
+          if (/^"/.test(match)) {
+            if (/:$/.test(match)) cls = 'json-key';
+            else cls = 'json-string';
+          } else if (/true|false/.test(match)) cls = 'json-bool';
+          return `<span class="${cls}">${match}</span>`;
+        });
+      document.getElementById('stateJsonPreview').innerHTML = highlighted;
+    }
+
+    // --- HTML5 Canvas Game World Engine ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function spawnTarget() {
+      const template = TARGET_TYPES[Math.floor(Math.random() * TARGET_TYPES.length)];
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.min(canvas.width, canvas.height) * 0.42;
+      
+      GAME_STATE.currentTarget = {
+        ...template,
+        angle: angle,
+        distance: dist,
+        maxDistance: dist,
+        evaluated: false,
+        active: true
+      };
+
+      document.getElementById('hudAiState').innerText = "EVALUATING...";
+      document.getElementById('hudAiState').style.color = "var(--accent-orange)";
+
+      // Trigger AI evaluation immediately on target detection
+      evaluateWithDecision1(GAME_STATE.currentTarget).then(decision => {
+        if (!GAME_STATE.currentTarget) return;
+        GAME_STATE.currentTarget.evaluated = true;
+        GAME_STATE.currentTarget.aiDecision = decision;
+        document.getElementById('hudAiState').innerText = "DECIDED: " + decision.action.toUpperCase();
+        document.getElementById('hudAiState').style.color = "var(--accent-cyan)";
+
+        // In Auto-Pilot mode, execute the decision when target approaches engagement radius
+        if (CONFIG.autoPilot) {
+          setTimeout(() => {
+            if (GAME_STATE.currentTarget && GAME_STATE.currentTarget.active) {
+              window.triggerAction(decision.action);
+            }
+          }, 350);
+        }
+      });
+    }
+
+    // Trigger Tactical Action
+    window.triggerAction = function(actionName) {
+      sound.init();
+      const target = GAME_STATE.currentTarget;
+      if (!target || !target.active) return;
+
+      target.active = false;
+      const center = { x: canvas.width / 2, y: canvas.height / 2 };
+      const targetPos = {
+        x: center.x + Math.cos(target.angle) * target.distance,
+        y: center.y + Math.sin(target.angle) * target.distance
+      };
+
+      const correct = (actionName === target.expectedAction);
+
+      if (actionName === 'intercept') {
+        sound.playLaser();
+        GAME_STATE.laserBeam = { from: center, to: targetPos, life: 15 };
+        createExplosion(targetPos.x, targetPos.y, target.color);
+        if (target.kind === 'pod') {
+          // Accidental destruction of civilians!
+          GAME_STATE.hull = Math.max(0, GAME_STATE.hull - 30);
+          showFloatingText("CIVILIAN CASUALTY! -30 HULL", center.x, center.y - 40, "var(--accent-red)");
+        } else if (correct) {
+          GAME_STATE.score += 150;
+          GAME_STATE.resolved += 1;
+          showFloatingText("+150 INTERCEPT", targetPos.x, targetPos.y, "var(--accent-green)");
+        }
+      } else if (actionName === 'shield') {
+        sound.playShield();
+        GAME_STATE.shieldFlash = 20;
+        if (correct) {
+          GAME_STATE.score += 120;
+          GAME_STATE.resolved += 1;
+          showFloatingText("+120 SHIELD ABSORB", center.x, center.y - 50, "var(--accent-cyan)");
+        } else if (target.kind === 'raider') {
+          // Shield blocked it partially but hull took strain
+          GAME_STATE.shield = Math.max(0, GAME_STATE.shield - 20);
+          showFloatingText("-20 SHIELD DAMAGE", center.x, center.y - 50, "var(--accent-orange)");
+        }
+      } else if (actionName === 'dock') {
+        sound.playDock();
+        GAME_STATE.tractorBeam = { from: center, to: targetPos, life: 25 };
+        if (correct) {
+          GAME_STATE.score += 200;
+          GAME_STATE.resolved += 1;
+          GAME_STATE.hull = Math.min(100, GAME_STATE.hull + 15);
+          showFloatingText("+200 SURVIVORS DOCKED!", center.x, center.y - 50, "var(--accent-green)");
+        } else if (target.kind === 'raider') {
+          // Traitor boarded the station!
+          sound.playImpact();
+          GAME_STATE.hull = Math.max(0, GAME_STATE.hull - 40);
+          showFloatingText("BOARDING BREACH! -40 HULL", center.x, center.y - 50, "var(--accent-red)");
+        }
+      } else if (actionName === 'ignore') {
+        if (correct) {
+          GAME_STATE.score += 80;
+          GAME_STATE.resolved += 1;
+          showFloatingText("+80 CLEAN TRANSIT", targetPos.x, targetPos.y, "var(--accent-cyan)");
+        } else if (target.kind === 'raider' || target.kind === 'storm') {
+          // Ignored a real threat!
+          sound.playImpact();
+          GAME_STATE.hull = Math.max(0, GAME_STATE.hull - 35);
+          showFloatingText("UNOPPOSED IMPACT! -35 HULL", center.x, center.y - 50, "var(--accent-red)");
+        }
+      }
+
+      updateHUD();
+
+      // Schedule next bogey
+      setTimeout(() => {
+        GAME_STATE.currentTarget = null;
+        spawnTarget();
+      }, 1200);
+    };
+
+    function updateHUD() {
+      document.getElementById('hudHull').innerText = `${GAME_STATE.hull}%`;
+      document.getElementById('hudHullBar').style.transform = `scaleX(${Math.max(0, GAME_STATE.hull / 100)})`;
+      document.getElementById('hudShield').innerText = `${GAME_STATE.shield}%`;
+      document.getElementById('hudShieldBar').style.transform = `scaleX(${Math.max(0, GAME_STATE.shield / 100)})`;
+      document.getElementById('hudScore').innerText = GAME_STATE.score;
+      document.getElementById('hudResolved').innerText = GAME_STATE.resolved;
+
+      if (GAME_STATE.hull <= 0) {
+        document.getElementById('hudAiState').innerText = "STATION DESTROYED";
+        document.getElementById('hudAiState').style.color = "var(--accent-red)";
+      }
+    }
+
+    // Particle FX
+    function createExplosion(x, y, color) {
+      for (let i = 0; i < 28; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const spd = 1 + Math.random() * 4;
+        GAME_STATE.particles.push({
+          x, y,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd,
+          color,
+          radius: 2 + Math.random() * 3,
+          life: 30
+        });
+      }
+    }
+
+    const floatingTexts = [];
+    function showFloatingText(text, x, y, color) {
+      floatingTexts.push({ text, x, y, color, life: 40, vy: -1.2 });
+    }
+
+    // Game Loop
+    let radarAngle = 0;
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const maxRadius = Math.min(canvas.width, canvas.height) * 0.44;
+
+      // Draw Radar Grid
+      ctx.save();
+      ctx.strokeStyle = "rgba(0, 240, 255, 0.12)";
+      ctx.lineWidth = 1;
+
+      // Concentric circles
+      for (let r = 0.25; r <= 1.0; r += 0.25) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, maxRadius * r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Crosshairs
+      ctx.beginPath();
+      ctx.moveTo(cx - maxRadius, cy);
+      ctx.lineTo(cx + maxRadius, cy);
+      ctx.moveTo(cx, cy - maxRadius);
+      ctx.lineTo(cx, cy + maxRadius);
+      ctx.stroke();
+
+      // Rotating Radar Beam
+      radarAngle += 0.025;
+      const grad = ctx.createConicGradient(radarAngle, cx, cy);
+      grad.addColorStop(0, "rgba(0, 240, 255, 0.15)");
+      grad.addColorStop(0.12, "rgba(0, 240, 255, 0.0)");
+      grad.addColorStop(1, "rgba(0, 240, 255, 0.0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, maxRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Draw Outpost Base in center
+      ctx.save();
+      // Shield Aura
+      if (GAME_STATE.shieldFlash > 0) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 48, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, 240, 255, ${GAME_STATE.shieldFlash / 25})`;
+        ctx.fill();
+        ctx.strokeStyle = "var(--accent-cyan)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        GAME_STATE.shieldFlash--;
+      }
+
+      // Station Core
+      ctx.beginPath();
+      ctx.arc(cx, cy, 26, 0, Math.PI * 2);
+      ctx.fillStyle = "#1e293b";
+      ctx.strokeStyle = "var(--accent-cyan)";
+      ctx.lineWidth = 2;
+      ctx.fill();
+      ctx.stroke();
+
+      // Station Modules
+      for (let i = 0; i < 4; i++) {
+        const ma = (Math.PI / 2) * i + radarAngle * 0.3;
+        const mx = cx + Math.cos(ma) * 32;
+        const my = cy + Math.sin(ma) * 32;
+        ctx.beginPath();
+        ctx.arc(mx, my, 7, 0, Math.PI * 2);
+        ctx.fillStyle = "var(--accent-cyan)";
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // Draw Current Approaching Target
+      const target = GAME_STATE.currentTarget;
+      if (target && target.active) {
+        // Move target closer
+        target.distance -= target.speed;
+
+        const tx = cx + Math.cos(target.angle) * target.distance;
+        const ty = cy + Math.sin(target.angle) * target.distance;
+
+        // Draw reticle and target body
+        ctx.save();
+        ctx.strokeStyle = target.color;
+        ctx.fillStyle = target.color;
+        ctx.lineWidth = 1.5;
+
+        // Target glyph
+        ctx.beginPath();
+        ctx.arc(tx, ty, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Target bounding box
+        const bSize = 16;
+        ctx.strokeRect(tx - bSize, ty - bSize, bSize * 2, bSize * 2);
+
+        // Distance & name label
+        ctx.fillStyle = "#fff";
+        ctx.font = "11px monospace";
+        ctx.fillText(target.name, tx + 20, ty - 4);
+        ctx.fillStyle = "var(--text-dim)";
+        ctx.fillText(`${Math.round(target.distance * 8)} km`, tx + 20, ty + 10);
+
+        // Vector line to station
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(cx, cy);
+        ctx.stroke();
+        ctx.restore();
+
+        // If target breaches station perimeter without resolution
+        if (target.distance <= 45) {
+          window.triggerAction('ignore');
+        }
+      }
+
+      // Draw Laser Beam FX
+      if (GAME_STATE.laserBeam && GAME_STATE.laserBeam.life > 0) {
+        ctx.save();
+        ctx.strokeStyle = "#ff3366";
+        ctx.lineWidth = GAME_STATE.laserBeam.life / 2;
+        ctx.shadowColor = "#ff3366";
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.moveTo(GAME_STATE.laserBeam.from.x, GAME_STATE.laserBeam.from.y);
+        ctx.lineTo(GAME_STATE.laserBeam.to.x, GAME_STATE.laserBeam.to.y);
+        ctx.stroke();
+        ctx.restore();
+        GAME_STATE.laserBeam.life--;
+      }
+
+      // Draw Tractor Beam FX
+      if (GAME_STATE.tractorBeam && GAME_STATE.tractorBeam.life > 0) {
+        ctx.save();
+        ctx.strokeStyle = "#00ff88";
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.moveTo(GAME_STATE.tractorBeam.from.x, GAME_STATE.tractorBeam.from.y);
+        ctx.lineTo(GAME_STATE.tractorBeam.to.x, GAME_STATE.tractorBeam.to.y);
+        ctx.stroke();
+        ctx.restore();
+        GAME_STATE.tractorBeam.life--;
+      }
+
+      // Draw Particles
+      for (let i = GAME_STATE.particles.length - 1; i >= 0; i--) {
+        const p = GAME_STATE.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+        if (p.life <= 0) GAME_STATE.particles.splice(i, 1);
+      }
+
+      // Draw Floating Feedback Texts
+      ctx.save();
+      ctx.font = "bold 13px monospace";
+      for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y += ft.vy;
+        ft.life--;
+        ctx.fillStyle = ft.color;
+        ctx.textAlign = "center";
+        ctx.fillText(ft.text, ft.x, ft.y);
+        if (ft.life <= 0) floatingTexts.splice(i, 1);
+      }
+      ctx.restore();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.key === '1') window.triggerAction('intercept');
+      if (e.key === '2') window.triggerAction('shield');
+      if (e.key === '3') window.triggerAction('dock');
+      if (e.key === '4') window.triggerAction('ignore');
+    });
+
+    // Auto-pilot toggle
+    document.getElementById('modeToggleBtn').addEventListener('click', () => {
+      CONFIG.autoPilot = !CONFIG.autoPilot;
+      const btn = document.getElementById('modeToggleBtn');
+      const icon = document.getElementById('modeIcon');
+      const text = document.getElementById('modeText');
+      if (CONFIG.autoPilot) {
+        btn.classList.add('btn-active');
+        icon.innerText = '🤖';
+        text.innerText = 'AI Autonomous Co-Pilot';
+      } else {
+        btn.classList.remove('btn-active');
+        icon.innerText = '🎮';
+        text.innerText = 'Manual Player Duel';
+      }
+    });
+
+    // Sound toggle
+    document.getElementById('audioToggleBtn').addEventListener('click', () => {
+      sound.init();
+      sound.enabled = !sound.enabled;
+      document.getElementById('audioToggleBtn').innerText = sound.enabled ? '🔊 Audio' : '🔇 Muted';
+    });
+
+    // Settings Modal
+    window.openSettings = function() {
+      document.getElementById('cfgEngineMode').value = CONFIG.engineMode;
+      document.getElementById('cfgEndpoint').value = CONFIG.endpoint;
+      document.getElementById('cfgDeployment').value = CONFIG.deployment;
+      document.getElementById('cfgApiKey').value = CONFIG.apiKey;
+      toggleLiveFields();
+      document.getElementById('settingsModal').classList.add('open');
+    };
+
+    window.closeSettings = function() {
+      document.getElementById('settingsModal').classList.remove('open');
+    };
+
+    document.getElementById('settingsBtn').addEventListener('click', window.openSettings);
+
+    document.getElementById('cfgEngineMode').addEventListener('change', toggleLiveFields);
+    function toggleLiveFields() {
+      const mode = document.getElementById('cfgEngineMode').value;
+      document.getElementById('liveSettingsGroup').style.display = (mode === 'live') ? 'block' : 'none';
+    }
+
+    window.saveSettings = function() {
+      CONFIG.engineMode = document.getElementById('cfgEngineMode').value;
+      CONFIG.endpoint = document.getElementById('cfgEndpoint').value;
+      CONFIG.deployment = document.getElementById('cfgDeployment').value;
+      CONFIG.apiKey = document.getElementById('cfgApiKey').value;
+
+      localStorage.setItem('d1_engine', CONFIG.engineMode);
+      localStorage.setItem('d1_endpoint', CONFIG.endpoint);
+      localStorage.setItem('d1_deployment', CONFIG.deployment);
+      localStorage.setItem('d1_key', CONFIG.apiKey);
+
+      const statusPill = document.getElementById('connectionStatus');
+      const statusLabel = document.getElementById('statusLabel');
+
+      if (CONFIG.engineMode === 'live' && CONFIG.endpoint && CONFIG.apiKey) {
+        statusPill.style.color = 'var(--accent-cyan)';
+        statusPill.style.background = 'rgba(0, 240, 255, 0.1)';
+        statusPill.style.borderColor = 'rgba(0, 240, 255, 0.3)';
+        statusLabel.innerText = 'Live Foundry API Connected';
+      } else {
+        statusPill.style.color = 'var(--accent-green)';
+        statusPill.style.background = 'rgba(0, 255, 136, 0.1)';
+        statusPill.style.borderColor = 'rgba(0, 255, 136, 0.3)';
+        statusLabel.innerText = 'Simulation Engine (Fast Demo)';
+      }
+
+      window.closeSettings();
+    };
+
+    // Start Game
+    spawnTarget();
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
