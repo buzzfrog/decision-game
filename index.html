@@ -444,7 +444,7 @@
       padding: 10px;
       white-space: pre-wrap;
       word-break: break-all;
-      max-height: 150px;
+      max-height: 55vh;
       overflow-y: auto;
     }
 
@@ -934,21 +934,37 @@
     ];
 
     // --- Microsoft-Decision-1 API Client ---
-    async function evaluateWithDecision1(target) {
-      const statePayload = {
+    let evalSeq = 0;
+    function buildStatePayload(target) {
+      return {
         target_name: target.name,
         transponder: target.transponder,
         energy_signature: target.energy_signature,
         hull_integrity: target.hull_integrity,
         speed_kps: target.speed_kps,
-        distance_km: Math.round(target.distance),
+        distance_km: Math.round(target.distance * 8),
         station_hull_integrity: GAME_STATE.hull,
         station_shield_power: GAME_STATE.shield,
         incident_description: target.lore
       };
+    }
+
+    let lastJsonRender = 0;
+    function refreshStateJson() {
+      const t = GAME_STATE.currentTarget;
+      if (!t) return;
+      const now = performance.now();
+      if (now - lastJsonRender < 150) return;
+      lastJsonRender = now;
+      renderStateJson({ state: buildStatePayload(t), decision: t.rawDecision || "pending..." });
+    }
+
+    async function evaluateWithDecision1(target) {
+      const mySeq = ++evalSeq;
+      const statePayload = buildStatePayload(target);
 
       // Display evaluated state in UI
-      renderStateJson(statePayload);
+      renderStateJson({ state: statePayload, decision: "pending..." });
 
       const startTime = performance.now();
 
@@ -1001,7 +1017,10 @@
 
           const result = await resp.json();
           const latency = Math.round(performance.now() - startTime);
-          renderTelemetry(result, latency);
+          target.rawDecision = result;
+          if (mySeq === evalSeq) {
+            renderTelemetry(result, latency);
+          }
           return parseDecisionResult(result);
         } catch (err) {
           console.warn("Live API call failed, falling back to simulated inference:", err);
@@ -1013,7 +1032,10 @@
       await new Promise(r => setTimeout(r, 35 + Math.random() * 20));
       const simulatedResult = generateSimulatedDecision(target);
       const latency = Math.round(performance.now() - startTime);
-      renderTelemetry(simulatedResult, latency);
+      target.rawDecision = simulatedResult;
+      if (mySeq === evalSeq) {
+        renderTelemetry(simulatedResult, latency);
+      }
       return parseDecisionResult(simulatedResult);
     }
 
@@ -1178,8 +1200,9 @@
       document.getElementById('hudAiState').style.color = "var(--accent-orange)";
 
       // Trigger AI evaluation immediately on target detection
-      evaluateWithDecision1(GAME_STATE.currentTarget).then(decision => {
-        if (!GAME_STATE.currentTarget) return;
+      const spawned = GAME_STATE.currentTarget;
+      evaluateWithDecision1(spawned).then(decision => {
+        if (GAME_STATE.currentTarget !== spawned) return;
         GAME_STATE.currentTarget.evaluated = true;
         GAME_STATE.currentTarget.aiDecision = decision;
         document.getElementById('hudAiState').innerText = "DECIDED: " + decision.action.toUpperCase();
@@ -1298,8 +1321,8 @@
       }
 
       updateHUD();
-
-      // Schedule next bogey
+      lastJsonRender = 0;
+      refreshStateJson();
       afterDelay(() => {
         GAME_STATE.currentTarget = null;
         spawnTarget();
@@ -1422,6 +1445,7 @@
       if (target && target.active) {
         // Move target closer
         target.distance -= target.speed;
+        refreshStateJson();
 
         const tx = cx + Math.cos(target.angle) * target.distance;
         const ty = cy + Math.sin(target.angle) * target.distance;
