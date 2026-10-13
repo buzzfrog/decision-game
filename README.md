@@ -1,10 +1,17 @@
-# Outpost Sentinel - Microsoft-Decision-1 Tactical Defense Demo
+---
+title: Outpost Sentinel - Microsoft-Decision-1 Tactical Defense Demo
+description: A real-time tactical defense game demonstrating Microsoft-Decision-1.
+---
+
+## Outpost Sentinel - Microsoft-Decision-1 Tactical Defense Demo
 
 A real-time 2D tactical defense game and interactive demonstrator for the **Microsoft-Decision-1** model available in [Microsoft Foundry](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-microsoft-decision).
 
 ## Overview
 
 Unlike generative large language models (LLMs) that produce free-form text, `Microsoft-Decision-1` operates as a high-speed, bounded **System-1 decision engine**. It evaluates a structured state payload and returns typed numerical judgments with probabilities in tens of milliseconds.
+
+For a general explanation of the term, see [System-1 decision engine](SYSTEM-1-DECISION-ENGINE.md).
 
 This demo illustrates all three core decision primitives supported by the API:
 
