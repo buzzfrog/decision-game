@@ -544,6 +544,9 @@
       <button id="modeToggleBtn" class="btn btn-active" title="Toggle Auto-Pilot AI vs Manual Player mode">
         <span id="modeIcon">🤖</span> <span id="modeText">AI Autonomous Co-Pilot</span>
       </button>
+      <button id="pauseBtn" class="btn" title="Pause / resume the game (P or Space)">
+        ⏸ Pause
+      </button>
       <button id="audioToggleBtn" class="btn" title="Toggle Sound FX">
         🔊 Audio
       </button>
@@ -591,6 +594,10 @@
       <!-- Canvas -->
       <div class="canvas-wrapper">
         <canvas id="gameCanvas"></canvas>
+        <div id="pauseOverlay" style="display:none; position:absolute; inset:0; align-items:center; justify-content:center; flex-direction:column; gap:8px; background:rgba(5,10,20,0.6); color:#fff; font-family:monospace; letter-spacing:4px; font-size:28px; pointer-events:none;">
+          ⏸ PAUSED
+          <span style="font-size:12px; letter-spacing:1px; color:var(--text-dim);">Press P or Space to resume</span>
+        </div>
       </div>
 
       <!-- Action Controls (Active in Manual Mode or for manual overrides) -->
@@ -599,19 +606,19 @@
           Tactical Command:
         </div>
         <div class="action-buttons">
-          <button class="action-btn btn-intercept" onclick="window.triggerAction('intercept')">
+          <button class="action-btn btn-intercept" title="Destroy the contact. Best against raiders; destroying a rescue pod costs hull." onclick="window.triggerAction('intercept')">
             <span>Laser Intercept</span>
             <span class="shortcut">Key [1]</span>
           </button>
-          <button class="action-btn btn-shield" onclick="window.triggerAction('shield')">
+          <button class="action-btn btn-shield" title="Absorb the impact. Best against ion storms." onclick="window.triggerAction('shield')">
             <span>Shield Boost</span>
             <span class="shortcut">Key [2]</span>
           </button>
-          <button class="action-btn btn-dock" onclick="window.triggerAction('dock')">
+          <button class="action-btn btn-dock" title="Pull the contact aboard. Best for rescue pods; boarding a raider is a breach." onclick="window.triggerAction('dock')">
             <span>Tractor Dock</span>
             <span class="shortcut">Key [3]</span>
           </button>
-          <button class="action-btn btn-ignore" onclick="window.triggerAction('ignore')">
+          <button class="action-btn btn-ignore" title="Let it pass. Best for harmless debris; ignoring a threat damages the hull." onclick="window.triggerAction('ignore')">
             <span>Hold / Ignore</span>
             <span class="shortcut">Key [4]</span>
           </button>
@@ -694,6 +701,12 @@
                 <div class="score-level-block" title="2: Major"></div>
                 <div class="score-level-block" title="3: Critical"></div>
               </div>
+            </div>
+
+            <!-- Plain-English explanation -->
+            <div id="decisionExplain" style="margin-top: 14px; padding: 10px 12px; border-radius: 6px; background: rgba(0,240,255,0.06); border: 1px solid rgba(0,240,255,0.2); font-size: 12px; line-height: 1.5;">
+              <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 4px;">In plain English</div>
+              <div id="explainText">Waiting for a contact to analyse…</div>
             </div>
           </div>
         </div>
@@ -1171,10 +1184,11 @@
         GAME_STATE.currentTarget.aiDecision = decision;
         document.getElementById('hudAiState').innerText = "DECIDED: " + decision.action.toUpperCase();
         document.getElementById('hudAiState').style.color = "var(--accent-cyan)";
+        document.getElementById('explainText').innerHTML = explainDecision(GAME_STATE.currentTarget, decision);
 
         // In Auto-Pilot mode, execute the decision when target approaches engagement radius
         if (CONFIG.autoPilot) {
-          setTimeout(() => {
+          afterDelay(() => {
             if (GAME_STATE.currentTarget && GAME_STATE.currentTarget.active) {
               window.triggerAction(decision.action);
             }
@@ -1183,8 +1197,41 @@
       });
     }
 
+    const ACTION_LABELS = {
+      intercept: 'fire the laser to destroy it',
+      shield: 'boost the shields to absorb it',
+      dock: 'tractor it in and dock it',
+      ignore: 'hold fire and let it pass'
+    };
+
+    function explainDecision(target, d) {
+      const hostile = d.hostileProb >= 0.5
+        ? `<b style="color:var(--accent-red)">${Math.round(d.hostileProb * 100)}% likely hostile</b>`
+        : `<b style="color:var(--accent-green)">only ${Math.round(d.hostileProb * 100)}% likely hostile</b>`;
+      const sev = d.threatScore >= 2 ? 'critical' : d.threatScore >= 1 ? 'moderate' : 'low';
+      return `<b>${target.name}</b> detected. The AI judges it ${hostile}, with ${sev} danger (${d.threatScore.toFixed(1)} of 3). ` +
+        `Best response: <b style="color:var(--accent-cyan)">${d.action.toUpperCase()}</b> — ${ACTION_LABELS[d.action]}.` +
+        (CONFIG.autoPilot ? ' Auto-pilot will act on this.' : ' You are in manual mode — press 1-4 to choose.');
+    }
+
+    // Pause support: timers wait while paused
+    let paused = false;
+    function afterDelay(fn, ms) {
+      setTimeout(function tick() {
+        if (paused) { setTimeout(tick, 100); return; }
+        fn();
+      }, ms);
+    }
+    function setPaused(p) {
+      paused = p;
+      document.getElementById('pauseOverlay').style.display = p ? 'flex' : 'none';
+      document.getElementById('pauseBtn').innerText = p ? '▶ Resume' : '⏸ Pause';
+      document.getElementById('pauseBtn').classList.toggle('btn-active', p);
+    }
+
     // Trigger Tactical Action
     window.triggerAction = function(actionName) {
+      if (paused) return;
       sound.init();
       const target = GAME_STATE.currentTarget;
       if (!target || !target.active) return;
@@ -1253,7 +1300,7 @@
       updateHUD();
 
       // Schedule next bogey
-      setTimeout(() => {
+      afterDelay(() => {
         GAME_STATE.currentTarget = null;
         spawnTarget();
       }, 1200);
@@ -1297,6 +1344,7 @@
     // Game Loop
     let radarAngle = 0;
     function gameLoop() {
+      if (paused) { requestAnimationFrame(gameLoop); return; }
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const cx = canvas.width / 2;
       const cy = canvas.height / 2;
@@ -1399,6 +1447,10 @@
         ctx.fillText(target.name, tx + 20, ty - 4);
         ctx.fillStyle = "var(--text-dim)";
         ctx.fillText(`${Math.round(target.distance * 8)} km`, tx + 20, ty + 10);
+        if (target.aiDecision) {
+          ctx.fillStyle = "#00f0ff";
+          ctx.fillText(`AI: ${target.aiDecision.action.toUpperCase()}`, tx + 20, ty + 24);
+        }
 
         // Vector line to station
         ctx.setLineDash([4, 4]);
@@ -1476,6 +1528,11 @@
 
     // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
+      if (e.key === 'p' || e.key === 'P' || (e.key === ' ' && !/INPUT|SELECT|TEXTAREA|BUTTON/.test(e.target.tagName))) {
+        e.preventDefault();
+        setPaused(!paused);
+        return;
+      }
       if (e.key === '1') window.triggerAction('intercept');
       if (e.key === '2') window.triggerAction('shield');
       if (e.key === '3') window.triggerAction('dock');
@@ -1497,6 +1554,11 @@
         icon.innerText = '🎮';
         text.innerText = 'Manual Player Duel';
       }
+    });
+
+    document.getElementById('pauseBtn').addEventListener('click', (e) => {
+      setPaused(!paused);
+      e.currentTarget.blur();
     });
 
     // Sound toggle
